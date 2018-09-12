@@ -32,17 +32,16 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
-
+	printf("ip is \"%s\"\n",hostName);
 	printf("port num is \"%d\"\n",portnum);
 
-
-	//make socket
+	printf("connecting to server\n");
+	//make socket---------------------------------------------------------
 	int sock_desc;
 	sock_desc = socket(PF_INET, SOCK_STREAM, 6);
 
 	struct sockaddr_in sin;
 	sin.sin_family = PF_INET;
-	printf("ip is \"%s\"\n",hostName);
 	//copy ip address
 	in_addr_t address;
 	address = inet_addr(hostName);
@@ -52,10 +51,11 @@ int main(int argc, char* argv[]){
 	}
 	memcpy(&sin.sin_addr, &address, sizeof(address));
 	//memcpy (&sin.sin_addr, hptr->h_addr, hptr->h_length); 
-	//set portnum
+
+	//set portnum------------------------------------------------------------
 	sin.sin_port = htons(portnum);
 
-	//connect
+	//connect ---------------------------------------------------------------
 	int connectError = connect(sock_desc, (struct sockaddr *) &sin, sizeof(sin));
 	if(connectError < 0){
 		fprintf(stderr, "could not connect to %s\n", hostName);
@@ -64,8 +64,23 @@ int main(int argc, char* argv[]){
 
 	printf("successfully connected to server\n");
 
-
+	
 	//write to server
+	//test print
+	char* toWriteStr = "";
+	size_t bufsize = 1024;
+	toWriteStr = (char*)malloc(bufsize * sizeof(char));
+	if(toWriteStr == NULL){
+		fprintf(stderr, "error\n");
+		return 1;
+	}
+	while(getline(&toWriteStr,&bufsize,stdin) != EOF) {
+
+		int toWriteLen = strlen(toWriteStr);
+		printf("string is %s",toWriteStr);
+		printf("length is %d\n",toWriteLen);
+	}
+
 	/*quoteNum = htonl(quoteNudm);
 	int result = write(sock_desc, &quoteNum, 4);
 	if(result < 0 ){
