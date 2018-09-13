@@ -18,11 +18,11 @@ int waitForClient(int sock) {
 	int len;
 	int readLine;
 	//working
-	while(readLine = read(sock, &len, sizeof(len)) > 0) {
-
+	while(1) {
+		readLine = read(sock, &len, sizeof(len));
 		len = ntohl(len);
 		printf("size received: %d\n", len);
-
+		readLine = 0;
 		char msg[len];
 		readLine = read(sock, &msg, len);
 		msg[len] = '\0';
@@ -60,8 +60,21 @@ int startServer(int portnum) {
 	int accepted = accept(sock_desc, (struct sockaddr *) &client, (socklen_t *) &size);
 	printf("connection received\n");
 
-
-	waitForClient(accepted);
+	int len;
+	int readLine;
+	//working
+	while(1) {
+		readLine = read(accepted, &len, sizeof(len));
+		len = ntohl(len);
+		if(len > 0) {
+			printf("size received: %d\n", len);
+			readLine = 0;
+			char msg[len];
+			readLine = read(accepted, &msg, len);
+			msg[len] = '\0';
+			printf("Message: %s\n", msg);
+		}
+	}
 
 
 
