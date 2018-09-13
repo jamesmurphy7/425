@@ -79,7 +79,9 @@ int main(int argc, char* argv[]){
 	while(getline(&toWriteStr,&bufsize,stdin) != EOF) {
 
 		toWriteLen = strlen(toWriteStr);
-
+		//delete extra newline on toWriteStr
+		toWriteStr[toWriteLen -1] = '\0';
+		
 		toWriteLen = htonl(toWriteLen);
 
 		int writeMsg = write(sock_desc, &toWriteLen, sizeof(toWriteLen));
