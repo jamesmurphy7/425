@@ -74,11 +74,27 @@ int main(int argc, char* argv[]){
 		fprintf(stderr, "error\n");
 		return 1;
 	}
+	int toWriteLen;
+	//write to server
 	while(getline(&toWriteStr,&bufsize,stdin) != EOF) {
 
-		int toWriteLen = strlen(toWriteStr);
-		printf("string is %s",toWriteStr);
-		printf("length is %d\n",toWriteLen);
+		toWriteLen = strlen(toWriteStr);
+
+		toWriteLen = htonl(toWriteLen);
+
+		int writeMsg = write(sock_desc, &toWriteLen, sizeof(toWriteLen));
+
+		if(writeMsg < 0){
+			printf("Unable to write to server\n");
+			return 1;
+		}
+		//send string
+		writeMsg = write(sock_desc, toWriteStr, strlen(toWriteStr)+1);
+
+		if(writeMsg < 0){
+			printf("Unable to write to server\n");
+			return 1;
+		}
 	}
 
 	/*quoteNum = htonl(quoteNudm);

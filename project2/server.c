@@ -14,6 +14,23 @@
 
 int sock_desc;
 
+int waitForClient(int sock) {
+	int len;
+	int readLine;
+	//working
+	while(readLine = read(sock, &len, sizeof(len)) > 0) {
+
+		len = ntohl(len);
+		printf("size received: %d\n", len);
+
+		char msg[len];
+		readLine = read(sock, &msg, len);
+		msg[len] = '\0';
+		printf("Message: %s\n", msg);
+	}
+	return 0;
+}
+
 int startServer(int portnum) {
 
 	struct sockaddr_in sin;
@@ -35,11 +52,19 @@ int startServer(int portnum) {
 		printf("Error listening to socket.\n");
 		return 1;
 	}
+
+
 	//accept a new connection when it is received
 	struct sockaddr_in client;
 	size_t size = sizeof(client);
 	int accepted = accept(sock_desc, (struct sockaddr *) &client, (socklen_t *) &size);
-	printf("connection received on %d\n", accepted);
+	printf("connection received\n");
+
+
+	waitForClient(accepted);
+
+
+
 	return 0;
 
 }
