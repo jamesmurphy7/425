@@ -20,16 +20,23 @@ int waitForClient(int sock) {
 	//working
 	while(1) {
 		readLine = read(sock, &len, sizeof(len));
-		len = ntohl(len);
-		if(len > 0){
-			printf("size received: %d\n", len);
-			readLine = 0;
-			char msg[len];
-			readLine = read(sock, &msg, len);
-			msg[len] = '\0';
-			printf("Message: %s\n", msg);
+		//closed connection
+		if( readLine <= 0) {
+			break;
 		}
+		len = ntohl(len);
+		printf("size received: %d\n", len);
+		char msg[len];
+		readLine = read(sock, &msg, len);
+		if( readLine <= 0) {
+			break;
+		}
+		msg[len] = '\0';
+		printf("Message: %s\n", msg);
+		
 	}
+	printf("Connection has been closed. Exiting...\n");
+	close(sock);
 	return 0;
 }
 
