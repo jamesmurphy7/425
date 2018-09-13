@@ -19,7 +19,7 @@ int startServer(int portnum) {
 	struct sockaddr_in sin;
 	sin.sin_family = PF_INET;
 	//htons(portnum);
-	sin.sin_port = portnum;
+	sin.sin_port = htons(portnum);
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 	int result = bind(sock_desc, (struct sockaddr *)&sin, sizeof(sin));
@@ -39,7 +39,7 @@ int startServer(int portnum) {
 	struct sockaddr_in client;
 	size_t size = sizeof(client);
 	int accepted = accept(sock_desc, (struct sockaddr *) &client, (socklen_t *) &size);
-
+	printf("connection received on %d\n", accepted);
 	return 0;
 
 }
