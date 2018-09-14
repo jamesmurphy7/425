@@ -80,7 +80,8 @@ int main(int argc, char* argv[]){
 
 		toWriteLen = strlen(toWriteStr);
 		//delete extra newline on toWriteStr
-		toWriteStr[toWriteLen -1] = '\0';
+		if(toWriteStr[toWriteLen -1]== '\n')
+			toWriteStr[toWriteLen -1] = '\0';
 		
 		toWriteLen = htonl(toWriteLen);
 
