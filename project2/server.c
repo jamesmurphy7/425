@@ -25,7 +25,7 @@ int waitForClient(int sock) {
 			break;
 		}
 		len = ntohl(len);
-		printf("%d\n", len);
+		printf("%d\n", len-1);
 		char msg[len];
 		readLine = read(sock, &msg, len);
 		if( readLine <= 0) {
@@ -35,7 +35,7 @@ int waitForClient(int sock) {
 		printf("%s\n", msg);
 		
 	}
-	printf("Connection has been closed. Exiting...\n");
+	//printf("Connection has been closed. Exiting...\n");
 	close(sock);
 	return 0;
 }
@@ -55,10 +55,10 @@ int startServer(int portnum) {
 		return 1;
 	}
 
-	printf("listening for a connection\n");
+	//printf("listening for a connection\n");
 	result = listen(sock_desc, 10);
 	if(result < 0){
-		printf("Error listening to socket.\n");
+		fprintf(stderr, "Error listening to socket.\n");
 		return 1;
 	}
 
@@ -67,7 +67,7 @@ int startServer(int portnum) {
 	struct sockaddr_in client;
 	size_t size = sizeof(client);
 	int accepted = accept(sock_desc, (struct sockaddr *) &client, (socklen_t *) &size);
-	printf("connection received\n");
+	//printf("connection received\n");
 
 	waitForClient(accepted);
 
