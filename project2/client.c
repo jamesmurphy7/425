@@ -83,6 +83,7 @@ int main(int argc, char* argv[]){
 		if(toWriteStr[toWriteLen -1]== '\n')
 			toWriteStr[toWriteLen -1] = '\0';
 		
+		
 		toWriteLen = htonl(toWriteLen);
 
 		int writeMsg = write(sock_desc, &toWriteLen, sizeof(toWriteLen));
@@ -92,7 +93,7 @@ int main(int argc, char* argv[]){
 			return 1;
 		}
 		//send string
-		writeMsg = write(sock_desc, toWriteStr, strlen(toWriteStr)+1);
+		writeMsg = write(sock_desc, toWriteStr, strlen(toWriteStr));
 
 		if(writeMsg < 0){
 			printf("Unable to write to server\n");
