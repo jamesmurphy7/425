@@ -1,5 +1,5 @@
 /*
-Authors: Kienan O'Brien, 
+Authors: Kienan O'Brien, James Murphy
 */
 #include <stdio.h>
 #include <math.h>
