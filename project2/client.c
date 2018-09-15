@@ -1,5 +1,5 @@
 /*
-Authors: Kienan O'Brien, 
+Authors: Kienan O'Brien, James Murphy
 */
 #include <stdio.h>
 #include <math.h>
@@ -34,10 +34,10 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
-	printf("ip is \"%s\"\n",hostName);
-	printf("port num is \"%d\"\n",portnum);
+	//printf("ip is \"%s\"\n",hostName);
+	//printf("port num is \"%d\"\n",portnum);
 
-	printf("connecting to server\n");
+	//printf("connecting to server\n");
 	//make socket---------------------------------------------------------
 	int sock_desc;
 	sock_desc = socket(PF_INET, SOCK_STREAM, 6);
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
-	printf("successfully connected to server\n");
+	//printf("successfully connected to server\n");
 
 	
 	//write to server
@@ -90,14 +90,14 @@ int main(int argc, char* argv[]){
 		int writeMsg = write(sock_desc, &toWriteLen, sizeof(toWriteLen));
 
 		if(writeMsg < 0){
-			printf("Unable to write to server\n");
+			fprintf(stderr, "Unable to write to server\n");
 			return 1;
 		}
 		//send string
 		writeMsg = write(sock_desc, toWriteStr, strlen(toWriteStr)+1);
 
 		if(writeMsg < 0){
-			printf("Unable to write to server\n");
+			fprintf(stderr, "Unable to write to server\n");
 			return 1;
 		}
 	}
