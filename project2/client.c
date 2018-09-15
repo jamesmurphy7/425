@@ -1,4 +1,6 @@
-
+/*
+Authors: Kienan O'Brien, 
+*/
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -99,13 +101,6 @@ int main(int argc, char* argv[]){
 			return 1;
 		}
 	}
-
-	/*quoteNum = htonl(quoteNudm);
-	int result = write(sock_desc, &quoteNum, 4);
-	if(result < 0 ){
-		fprintf(stderr, "could not write to %s\n", hostName);
-		return 1;
-	}*/
 	
 	return 0;
 }

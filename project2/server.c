@@ -1,4 +1,6 @@
-
+/*
+Authors: Kienan O'Brien, 
+*/
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -28,6 +30,7 @@ int waitForClient(int sock) {
 		printf("%d\n", len-1);
 		char msg[len];
 		readLine = read(sock, &msg, len);
+		//closed connection
 		if( readLine <= 0) {
 			break;
 		}
