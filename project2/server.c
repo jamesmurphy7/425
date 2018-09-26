@@ -76,7 +76,7 @@ int multipleListen(int client_socket) {
 	int nfound;              /* number of pending requests that select() found */     
 	char helper[1000];
 	printf("listen() socket_client : %d\n", client_socket);
-	printf("listen() socket_client : %d\n", sock_telnetd);
+	printf("listen() socket_telnet: %d\n", sock_telnetd);
 	while(1) {
 		/* need to wait for a message or a timeout */        
 		FD_ZERO(&listen);                   /* zero the bit map */        
@@ -84,26 +84,29 @@ int multipleListen(int client_socket) {
 		FD_SET(client_socket, &listen); /* client socket fdset */  
 	     /* set seconds + micro-seconds of timeout */        
 		timeout.tv_sec = 20;        
-		timeout.tv_usec = 0; 
-		nfound = select(client_socket + 1, &listen, (fd_set *)0, (fd_set *)0, &timeout); 
+		timeout.tv_usec = 0;
+
+		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
+
 		if (nfound == 0) {            /* handle time out here... */  
 			printf("timeout\n");      
 		} 
 		else if (nfound < 0) {            
 		/* handle error here... */  
-			printf("select didnt work");      
+			printf("select didnt work\n");   
+			return 1;   
 		}      
 		if(FD_ISSET(sock_telnetd, &listen)){
 			printf("Message from telnet: \n");
-			int getter = read(sock_telnetd, &helper, 1000);
+			int getter = read(sock_telnetd, helper, 1000);
 			puts(helper);
 		}
 
 		if(FD_ISSET(client_socket, &listen)){
 			printf("Message from client: \n");
-			int getter = read(client_socket, &helper, 1000);
-			puts(helper);
-			helper[0] = '\0';
+			int getter = read(client_socket, helper, 1000);
+			helper[getter] = '\0';
+			printf("%s", helper);
 		}
 	}
 	return 0;
@@ -150,6 +153,10 @@ int startServer(int portnum) {
 	struct sockaddr_in client;
 	size_t size = sizeof(client);
 	int accepted = accept(sock_client, (struct sockaddr *) &client, (socklen_t *) &size);
+	if(accepted < 0){
+		printf("Could not accept client.\n");
+		return 1;
+	}
 	printf("connection received from client, starting telnet connection\n");
 
 	if(openTelnet() > 0){
