@@ -98,8 +98,9 @@ int multipleListen(int client_socket) {
 		}      
 		if(FD_ISSET(sock_telnetd, &listen)){
 			printf("Message from telnet: \n");
-			int getter = read(sock_telnetd, helper, 1000);
-			puts(helper);
+			int getter = recv(sock_telnetd, helper, 1000, 0);
+			helper[getter] = '\0';
+			printf("%s", helper);
 		}
 
 		if(FD_ISSET(client_socket, &listen)){
