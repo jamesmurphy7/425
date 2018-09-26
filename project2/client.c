@@ -14,6 +14,7 @@ Authors: Kienan O'Brien, James Murphy
 #include <unistd.h>
 
 int sock_desc;
+int sock_tel;
 
 int writeLoop(){
 	//write to server
@@ -81,6 +82,39 @@ int connectToServer(char* hostName, int portnum){
 	return 0;
 }
 
+int connectToTel(int portnum){
+	struct sockaddr_in sin_toTel;
+
+	sin_toTel.sin_family = PF_INET;
+	sin_toTel.sin_port = htons(portnum);
+	sin_toTel.sin_addr.sin_addr = INADDR_ANY;
+
+	printf("binding socket...\n");
+	int result = bind(sock_tel, (struct sockaddr *)&sin_toTel, sizeof(sin_toTel));
+	if(result < 0){
+		fprintf(stderr, "error binding socket to Telnet with %d\n", portnum);
+		exit(1);
+	}
+
+	printf("listening for a connection...\n");
+	result = listen(sock_tel, 10);
+	if(result < 0){
+		fprintf(stderr, "error connecting to telnet\n");
+		exit(1);
+	}
+
+	printf("got a connection, waiting for connection to be accepted...\n");
+	struct sockaddr_in client;
+	size_t size = sizeof(client);
+	int accepted = accept(sock_tel, (struct sockaddr *) &client, (socklen_t *) &size);
+	if(accepted < 0){
+		printf("Could not accept telnet\n");
+		exit(1);
+	}
+	printf("accepted connection to telnet\n");
+	return 1;
+}
+
 int main(int argc, char* argv[]){
 	//error checking
 	if(argc != 4){
@@ -118,10 +152,14 @@ int main(int argc, char* argv[]){
 
 	printf("connecting to server\n");
 	//make socket---------------------------------------------------------
-	sock_desc = socket(PF_INET, SOCK_STREAM, 6);
+	sock_desc     = socket(PF_INET, SOCK_STREAM, 6);
+	soeck_descTel = soeckt(PF_INET, SOCK_STREAM, 6);
 
 	if(connectToServer(hostName, portnum) != 0){
 		return 1;
 	}
+
+	connectToTel(portnum2);
+
 	return writeLoop();
 }
