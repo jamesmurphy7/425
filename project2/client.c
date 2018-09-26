@@ -15,6 +15,7 @@ Authors: Kienan O'Brien, James Murphy
 
 int sock_desc;
 int sock_tel;
+int sock_client;
 
 int writeLoop(){
 	//write to server
@@ -87,7 +88,7 @@ int connectToTel(int portnum){
 
 	sin_toTel.sin_family = PF_INET;
 	sin_toTel.sin_port = htons(portnum);
-	sin_toTel.sin_addr.sin_addr = INADDR_ANY;
+	sin_toTel.sin_addr.s_addr = INADDR_ANY;
 
 	printf("binding socket...\n");
 	int result = bind(sock_tel, (struct sockaddr *)&sin_toTel, sizeof(sin_toTel));
@@ -112,7 +113,8 @@ int connectToTel(int portnum){
 		exit(1);
 	}
 	printf("accepted connection to telnet\n");
-	return 1;
+	sock_client = accepted;
+	return 0;
 }
 
 int main(int argc, char* argv[]){
@@ -152,14 +154,14 @@ int main(int argc, char* argv[]){
 
 	printf("connecting to server\n");
 	//make socket---------------------------------------------------------
-	sock_desc     = socket(PF_INET, SOCK_STREAM, 6);
-	soeck_descTel = soeckt(PF_INET, SOCK_STREAM, 6);
+	sock_desc = socket(PF_INET, SOCK_STREAM, 6);
+	sock_tel  = socket(PF_INET, SOCK_STREAM, 6);
 
 	if(connectToServer(hostName, portnum) != 0){
 		return 1;
 	}
 
-	connectToTel(portnum2);
+	connectToTel(portnumTel);
 
 	return writeLoop();
 }
