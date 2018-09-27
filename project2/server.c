@@ -101,6 +101,13 @@ int multipleListen(int client_socket) {
 			int getter = recv(sock_telnetd, helper, 1000, 0);
 			helper[getter] = '\0';
 			printf("%s", helper);
+			
+			int writeMsg = write(client_socket, helper, strlen(helper));
+
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
 		}
 
 		if(FD_ISSET(client_socket, &listen)){
@@ -108,6 +115,13 @@ int multipleListen(int client_socket) {
 			int getter = read(client_socket, helper, 1000);
 			helper[getter] = '\0';
 			printf("%s", helper);
+			
+			int writeMsg = write(sock_telnetd, helper, strlen(helper));
+
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
 		}
 	}
 	return 0;
