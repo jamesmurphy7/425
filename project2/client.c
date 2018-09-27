@@ -83,6 +83,63 @@ int connectToServer(char* hostName, int portnum){
 	return 0;
 }
 
+//listens to multiple ports using select
+int multipleListen(int client_socket) {
+	fd_set listen;           /* bit mask for listening on socket */        
+	struct timeval timeout;  /* timeout for select call */       
+	int nfound;              /* number of pending requests that select() found */     
+	char helper[1000];
+	printf("listen() socket_client : %d\n", sock_desc);
+	printf("listen() socket_telnet: %d\n", client_socket);
+	while(1) {
+		/* need to wait for a message or a timeout */        
+		FD_ZERO(&listen);                   /* zero the bit map */        
+		FD_SET(client_socket, &listen); /* client socket fdset */    
+		FD_SET(sock_desc, &listen); /* telnet socket fdset */  
+	     /* set seconds + micro-seconds of timeout */        
+		timeout.tv_sec = 20;        
+		timeout.tv_usec = 0;
+
+		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
+
+		if (nfound == 0) {            /* handle time out here... */  
+			printf("timeout\n");      
+		} 
+		else if (nfound < 0) {            
+		/* handle error here... */  
+			printf("select didnt work\n");   
+			return 1;   
+		}      
+		if(FD_ISSET(sock_desc, &listen)){
+			printf("Message from telnet: \n");
+			int getter = recv(sock_desc, helper, 1000, 0);
+			helper[getter] = '\0';
+			printf("%s", helper);
+
+			int writeMsg = write(client_socket, helper, strlen(helper));
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
+		}
+
+		if(FD_ISSET(client_socket, &listen)){
+			printf("Message from client: \n");
+			int getter = read(client_socket, helper, 1000);
+			helper[getter] = '\0';
+			printf("%s", helper);
+
+			int writeMsg = write(sock_desc, helper, strlen(helper));
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
+		}
+	}
+	return 0;
+
+}
+
 int connectToTel(int portnum){
 	struct sockaddr_in sin_toTel;
 
@@ -114,6 +171,7 @@ int connectToTel(int portnum){
 	}
 	printf("accepted connection to telnet\n");
 	sock_client = accepted;
+	multipleListen(accepted);
 	return 0;
 }
 
