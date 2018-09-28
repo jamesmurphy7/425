@@ -65,7 +65,6 @@ int openTelnet() {
 	if(connectError < 0){
 		return 1;
 	}
-
 	return 0;
 }
 
@@ -75,15 +74,17 @@ int multipleListen(int client_socket) {
 	struct timeval timeout;  /* timeout for select call */       
 	int nfound;              /* number of pending requests that select() found */     
 	char helper[1000];
+
 	printf("listen() socket_client : %d\n", client_socket);
 	printf("listen() socket_telnet: %d\n", sock_telnetd);
+
 	while(1) {
 		/* need to wait for a message or a timeout */        
 		FD_ZERO(&listen);                   /* zero the bit map */        
 		FD_SET(sock_telnetd, &listen); /* telnetd socket fdset */    
 		FD_SET(client_socket, &listen); /* client socket fdset */  
 	     /* set seconds + micro-seconds of timeout */        
-		timeout.tv_sec = 20;        
+		timeout.tv_sec = 30;        
 		timeout.tv_usec = 0;
 
 		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
@@ -95,22 +96,25 @@ int multipleListen(int client_socket) {
 		/* handle error here... */  
 			printf("select didnt work\n");   
 			return 1;   
+		}
+		if(FD_ISSET(client_socket, &listen)){
+			printf("client message\n");
+			int getter = read(client_socket, helper, 1000);
+			printf("Client bytes read: %d\n", getter);
+			helper[getter] = '\0';
+			int writeMsg = write(sock_telnetd, helper, getter);
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
 		}      
 		if(FD_ISSET(sock_telnetd, &listen)){
-			int getter = recv(sock_telnetd, helper, 1000, 0);
+			int getter = read(sock_telnetd, helper, 1000);
+			printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_client, helper, strlen(helper));
 			if(writeMsg < 0){
 				fprintf(stderr, "unable to write to client\n");
-				exit(1);
-			}
-		}
-		if(FD_ISSET(client_socket, &listen)){
-			int getter = recv(client_socket, helper, 1000, 0);
-			helper[getter] = '\0';
-			int writeMsg = write(sock_telnetd, helper, strlen(helper));
-			if(writeMsg < 0){
-				fprintf(stderr, "unable to write to server\n");
 				exit(1);
 			}
 		}
@@ -169,7 +173,7 @@ int startServer(int portnum) {
 		printf("Could not start telnet\n");
 		return 1;
 	}
-
+	sock_client = accepted;
 	printf("Connected to telnet, listening to multiple sockets.\n");
 	return multipleListen(accepted);
 
