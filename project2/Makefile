@@ -1,6 +1,6 @@
 
-all: client server
-client: client.c
-	gcc -Wall -o client client.c -lm
-server: server.c
-	gcc -Wall -o server server.c -lm
+all: clientProxy serverProxy
+clientProxy: clientProxy.c
+	gcc -Wall -o clientProxy clientProxy.c -lm
+serverProxy: serverProxy.c
+	gcc -Wall -o serverProxy serverProxy.c -lm
