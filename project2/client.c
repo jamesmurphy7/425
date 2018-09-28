@@ -55,6 +55,8 @@ int multipleListen(int tel_socket) {
 				fprintf(stderr, "unable to write to server\n");
 				exit(1);
 			}
+			if(getter == 0)
+				exit(0);
 		}      
 		if(FD_ISSET(sock_server, &listen)){
 			int getter = read(sock_server, helper, 1000);
@@ -65,6 +67,8 @@ int multipleListen(int tel_socket) {
 				fprintf(stderr, "unable to write to client\n");
 				exit(1);
 			}
+			if(getter == 0)
+				exit(0);
 		}
 	}
 	return 0;
