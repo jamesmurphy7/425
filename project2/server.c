@@ -77,6 +77,11 @@ int multipleListen(int client_socket) {
 		if(FD_ISSET(client_socket, &listen)){
 			printf("client message\n");
 			int getter = read(client_socket, helper, 1000);
+			
+			if(getter == 0){
+				exit(0);
+			}
+			
 			printf("Client bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_telnetd, helper, getter);
@@ -87,6 +92,11 @@ int multipleListen(int client_socket) {
 		}      
 		if(FD_ISSET(sock_telnetd, &listen)){
 			int getter = read(sock_telnetd, helper, 1000);
+			
+			if(getter == 0){
+				exit(0);
+			}
+			
 			printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_client, helper, getter);
