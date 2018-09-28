@@ -17,33 +17,9 @@ Authors: Kienan O'Brien, James Murphy
 int sock_client;
 int sock_telnetd;
 
-int waitForClient(int sock) {
-	int len;
-	int readLine;
-	//working
-	while(1) {
-		readLine = read(sock_telnetd, &len, sizeof(len));
-		//closed connection
-		if( readLine <= 0) {
-			break;
-		}
-		len = ntohl(len);
-		printf("%d\n", len-1);
-		char msg[len];
-		readLine = read(sock_telnetd, &msg, len);
-		//closed connection
-		if( readLine <= 0) {
-			break;
-		}
-		msg[len] = '\0';
-		printf("%s\n", msg);
-		
-	}
-	//printf("Connection has been closed. Exiting...\n");
-	close(sock);
-	return 0;
-}
-
+/*
+ * Opens a connection to the telnet daemon
+*/
 int openTelnet() {
 	//create a connection to telnet
 	struct sockaddr_in sin;
@@ -69,6 +45,7 @@ int openTelnet() {
 }
 
 //listens to multiple ports using select
+//forwards bytes from one socket to the other.
 int multipleListen(int client_socket) {
 	fd_set listen;           /* bit mask for listening on socket */        
 	struct timeval timeout;  /* timeout for select call */       
@@ -112,7 +89,7 @@ int multipleListen(int client_socket) {
 			int getter = read(sock_telnetd, helper, 1000);
 			printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
-			int writeMsg = write(sock_client, helper, strlen(helper));
+			int writeMsg = write(sock_client, helper, getter);
 			if(writeMsg < 0){
 				fprintf(stderr, "unable to write to client\n");
 				exit(1);
@@ -122,9 +99,11 @@ int multipleListen(int client_socket) {
 	return 0;
 
 }
+/*
+ * Waits for client to connect, then it opens a connection to the telnet
+ * daemon and begins multipleListen().
+*/
 int startServer(int portnum) {
-
-	//struct sockaddr_in sin;
 
 	//creating two sockets addresses for both the client and the telnet daemon
 	struct sockaddr_in sin_toClient;
@@ -178,7 +157,9 @@ int startServer(int portnum) {
 	return multipleListen(accepted);
 
 }
-
+/*
+ * Reads command line arguments and sets up sockets.
+*/
 int main(int argc, char* argv[]){
 
 	if(argc != 2){
@@ -210,5 +191,4 @@ int main(int argc, char* argv[]){
 	}
 
 	return startServer(portnum);
-	//return openTelnet();
 }
