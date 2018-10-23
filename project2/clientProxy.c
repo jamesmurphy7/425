@@ -24,31 +24,41 @@ int multipleListen(int tel_socket) {
 	struct timeval timeout;  /* timeout for select call */       
 	int nfound;              /* number of pending requests that select() found */     
 	char helper[1000];
-	printf("listen() socket_server : %d\n", sock_server);
-	printf("listen() socket_tel: %d\n", tel_socket);
+	//printf("listen() socket_server : %d\n", sock_server);
+	//printf("listen() socket_tel: %d\n", tel_socket);
 	while(1) {
 		/* need to wait for a message or a timeout */        
 		FD_ZERO(&listen);                   /* zero the bit map */        
 		FD_SET(tel_socket, &listen); /* telnet socket fdset */    
 		FD_SET(sock_server, &listen); /* server socket fdset */  
 	     /* set seconds + micro-seconds of timeout */        
-		timeout.tv_sec = 30;        
+		timeout.tv_sec = 1;        
 		timeout.tv_usec = 0;
 
 		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
 
-		if (nfound == 0) {            /* handle time out here... */  
-			printf("timeout\n");      
+		if (nfound == 0) {/* handel the pinging heartbeat(changed it from hadle time out here) */  
+			printf("ping\n"); 
+			char heartBeat[1000] = "ping";
+			heartBeat[4] = '\0';
+			int heartBeatLen = 4;
+			int writeMsg = write(sock_server, heartBeat, heartBeatLen);
+			
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
+
 		} 
 		else if (nfound < 0) {            
 		/* handle error here... */  
-			printf("select didnt work\n");   
+			//printf("select didnt work\n");   
 			return 1;   
 		}
 		if(FD_ISSET(tel_socket, &listen)){
-			printf("client message\n");
+			//printf("client message\n");
 			int getter = read(tel_socket, helper, 1000);
-			printf("Client bytes read: %d\n", getter);
+			//printf("Client bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_server, helper, getter);
 			if(writeMsg < 0){
@@ -60,7 +70,7 @@ int multipleListen(int tel_socket) {
 		}      
 		if(FD_ISSET(sock_server, &listen)){
 			int getter = read(sock_server, helper, 1000);
-			printf("Telnet bytes read: %d\n", getter);
+			//printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(tel_socket, helper, getter);
 			if(writeMsg < 0){
@@ -100,7 +110,7 @@ int connectToServer(char* hostName, int portnum){
 		return 1;
 	}
 
-	printf("successfully connected to server\n");
+	//printf("successfully connected to server\n");
 	
 	return 0;
 }
@@ -115,29 +125,29 @@ int connectAll(int portnum, char *hostname, int port){
 	sin_toTel.sin_port = htons(portnum);
 	sin_toTel.sin_addr.s_addr = INADDR_ANY;
 
-	printf("binding socket...\n");
+	//printf("binding socket...\n");
 	int result = bind(sock_tel, (struct sockaddr *)&sin_toTel, sizeof(sin_toTel));
 	if(result < 0){
 		fprintf(stderr, "error binding socket to Telnet with %d\n", portnum);
 		exit(1);
 	}
 
-	printf("listening for a connection...\n");
+	//printf("listening for a connection...\n");
 	result = listen(sock_tel, 10);
 	if(result < 0){
 		fprintf(stderr, "error connecting to telnet\n");
 		exit(1);
 	}
 
-	printf("got a connection, waiting for connection to be accepted...\n");
+	//printf("got a connection, waiting for connection to be accepted...\n");
 	struct sockaddr_in client;
 	size_t size = sizeof(client);
 	int accepted = accept(sock_tel, (struct sockaddr *) &client, (socklen_t *) &size);
 	if(accepted < 0){
-		printf("Could not accept telnet\n");
+		//printf("Could not accept telnet\n");
 		exit(1);
 	}
-	printf("accepted connection from telnet\n");
+	//printf("accepted connection from telnet\n");
 	//connect to server proxy after
 	if(connectToServer(hostname, port) != 0){
 		return 1;
@@ -181,11 +191,11 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
-	printf("ip is \"%s\"\n",hostName);
-	printf("portnum to server is \"%d\"\n",portnum);
-	printf("portnum to listen is \"%d\"\n",portnumTel);
+	//printf("ip is \"%s\"\n",hostName);
+	//printf("portnum to server is \"%d\"\n",portnum);
+	//printf("portnum to listen is \"%d\"\n",portnumTel);
 
-	printf("connecting to server\n");
+	//printf("connecting to server\n");
 	//make socket---------------------------------------------------------
 	sock_server = socket(PF_INET, SOCK_STREAM, 6);
 	sock_tel  = socket(PF_INET, SOCK_STREAM, 6);

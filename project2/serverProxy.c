@@ -51,9 +51,10 @@ int multipleListen(int client_socket) {
 	struct timeval timeout;  /* timeout for select call */       
 	int nfound;              /* number of pending requests that select() found */     
 	char helper[1000];
+	int deadCounter = 0;
 
-	printf("listen() socket_client : %d\n", client_socket);
-	printf("listen() socket_telnet: %d\n", sock_telnetd);
+	//printf("listen() socket_client : %d\n", client_socket);
+	//printf("listen() socket_telnet: %d\n", sock_telnetd);
 
 	while(1) {
 		/* need to wait for a message or a timeout */        
@@ -61,34 +62,47 @@ int multipleListen(int client_socket) {
 		FD_SET(sock_telnetd, &listen); /* telnetd socket fdset */    
 		FD_SET(client_socket, &listen); /* client socket fdset */  
 	     /* set seconds + micro-seconds of timeout */        
-		timeout.tv_sec = 30;        
+		timeout.tv_sec = 1;        
 		timeout.tv_usec = 0;
 
 		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
 
+		if(deadCounter >= 3){
+			printf("The connection is DEAD\n");
+			fflush(stdout);
+		}
+
 		if (nfound == 0) {            /* handle time out here... */  
-			printf("timeout\n");      
+			printf("timeout\n");
+			deadCounter++;      
 		} 
 		else if (nfound < 0) {            
 		/* handle error here... */  
-			printf("select didnt work\n");   
+			//printf("select didnt work\n");   
 			return 1;   
 		}
 		if(FD_ISSET(client_socket, &listen)){
-			printf("client message\n");
+			//printf("client message\n");
 			int getter = read(client_socket, helper, 1000);
 			
 			if(getter == 0){
 				exit(0);
 			}
 			
-			printf("Client bytes read: %d\n", getter);
+			//printf("Client bytes read: %d\n", getter);
 			helper[getter] = '\0';
-			int writeMsg = write(sock_telnetd, helper, getter);
-			if(writeMsg < 0){
-				fprintf(stderr, "unable to write to server\n");
-				exit(1);
+			if(getter == 4 && strcmp(helper,"ping") == 0){/* then this is a heartbeat message from client*/
+				printf("ping\n");
+				fflush(stdout);
 			}
+			else { /* else do a normal write to telnetdaemon */
+				int writeMsg = write(sock_telnetd, helper, getter);
+				if(writeMsg < 0){
+					fprintf(stderr, "unable to write to server\n");
+					exit(1);
+				}
+			}
+			deadCounter = 0;
 		}      
 		if(FD_ISSET(sock_telnetd, &listen)){
 			int getter = read(sock_telnetd, helper, 1000);
@@ -97,7 +111,7 @@ int multipleListen(int client_socket) {
 				exit(0);
 			}
 			
-			printf("Telnet bytes read: %d\n", getter);
+			//printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_client, helper, getter);
 			if(writeMsg < 0){
@@ -153,17 +167,17 @@ int startServer(int portnum) {
 	size_t size = sizeof(client);
 	int accepted = accept(sock_client, (struct sockaddr *) &client, (socklen_t *) &size);
 	if(accepted < 0){
-		printf("Could not accept client.\n");
+		//printf("Could not accept client.\n");
 		return 1;
 	}
-	printf("connection received from client, starting telnet connection\n");
+	//printf("connection received from client, starting telnet connection\n");
 
 	if(openTelnet() > 0){
-		printf("Could not start telnet\n");
+		//printf("Could not start telnet\n");
 		return 1;
 	}
 	sock_client = accepted;
-	printf("Connected to telnet, listening to multiple sockets.\n");
+	//printf("Connected to telnet, listening to multiple sockets.\n");
 	return multipleListen(accepted);
 
 }
