@@ -15,7 +15,10 @@ Authors: Kienan O'Brien, James Murphy
 
 int sock_tel;
 int sock_server;
+int oldPortNum;
+char* serverHostName;
 
+int connectToServer(char* hostName, int portnum);
 
 //listens to multiple ports using select, forwards data from one
 //port to the next.
@@ -62,8 +65,9 @@ int multipleListen(int tel_socket) {
 			helper[getter] = '\0';
 			int writeMsg = write(sock_server, helper, getter);
 			if(writeMsg < 0){
-				fprintf(stderr, "unable to write to server\n");
-				exit(1);
+				printf("unable to write to server\n");
+				//exit(1);
+				connectToServer(serverHostName,oldPortNum);
 			}
 			if(getter == 0)
 				exit(0);
@@ -75,10 +79,15 @@ int multipleListen(int tel_socket) {
 			int writeMsg = write(tel_socket, helper, getter);
 			if(writeMsg < 0){
 				fprintf(stderr, "unable to write to client\n");
+				printf("|%s|\n",helper);
+				//connectToServer(serverHostName,oldPortNum);
 				exit(1);
 			}
-			if(getter == 0)
+			if(getter == 0){
+				printf("getter is 0\n");
+				fflush(stdout);
 				exit(0);
+			}
 		}
 	}
 	return 0;
@@ -110,8 +119,8 @@ int connectToServer(char* hostName, int portnum){
 		return 1;
 	}
 
-	//printf("successfully connected to server\n");
-	
+	printf("successfully connected to server\n");
+	fflush(stdout);
 	return 0;
 }
 /*
@@ -190,6 +199,9 @@ int main(int argc, char* argv[]){
 		fprintf(stderr, "bad portnum\n");
 		return 1;
 	}
+
+	oldPortNum = portnum;
+	serverHostName = hostName;
 
 	//printf("ip is \"%s\"\n",hostName);
 	//printf("portnum to server is \"%d\"\n",portnum);
