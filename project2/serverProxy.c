@@ -152,9 +152,9 @@ int multipleListen() {
 			printf("select didnt work\n");   
 			return 1;   
 		}
-		if(FD_ISSET(clientSideSocket, &listen)){
+		if(FD_ISSET(clientSideSocket, &listen)){ /*message from clientproxy*/
 			//printf("client message\n");
-			if(waitingForReconnect == 1){
+			if(waitingForReconnect == 1){ /* if the server still needs to reconnect */
 				struct sockaddr_in client;
 				size_t size = sizeof(client);
 				int accepted = accept(clientSideSocket, (struct sockaddr *) &client, (socklen_t *) &size);
@@ -167,7 +167,7 @@ int multipleListen() {
 				waitingForReconnect = 0;
 				clientSideSocket = accepted;
 			}
-			else {
+			else { /*else write to the telnet daemon*/
 				int getter = read(clientSideSocket, helper, 1000);
 			
 				if(getter == 0){
@@ -179,6 +179,15 @@ int multipleListen() {
 				if(getter == 4 && strcmp(helper,"ping") == 0){/* then this is a heartbeat message from client*/
 					printf("ping\n");
 					fflush(stdout);
+					char heartBeat[1000] = "ping";
+					heartBeat[4] = '\0';
+					int heartBeatLen = 4;
+					int writeMsg = write(clientSideSocket, heartBeat, heartBeatLen);
+					if(writeMsg < 0){
+						fprintf(stderr, "unable to write to client\n");
+						exit(1);
+					}
+
 				}
 				else { /* else do a normal write to telnetdaemon */
 					int writeMsg = write(sock_telnetd, helper, getter);
@@ -199,7 +208,7 @@ int multipleListen() {
 			
 			//printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
-			int writeMsg = write(sock_client, helper, getter);
+			int writeMsg = write(clientSideSocket, helper, getter);
 			if(writeMsg < 0){
 				fprintf(stderr, "unable to write to client\n");
 				exit(1);

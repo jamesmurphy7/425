@@ -12,6 +12,7 @@ Authors: Kienan O'Brien, James Murphy
 #include <errno.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <time.h>
 
 int sock_tel;
 int sock_server;
@@ -27,6 +28,8 @@ int multipleListen(int tel_socket) {
 	struct timeval timeout;  /* timeout for select call */       
 	int nfound;              /* number of pending requests that select() found */     
 	char helper[1000];
+	clock_t before = clock();
+	int deadCounter = 0;
 	//printf("listen() socket_server : %d\n", sock_server);
 	//printf("listen() socket_tel: %d\n", tel_socket);
 	while(1) {
@@ -38,9 +41,9 @@ int multipleListen(int tel_socket) {
 		timeout.tv_sec = 1;        
 		timeout.tv_usec = 0;
 
-		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
-
-		if (nfound == 0) {/* handel the pinging heartbeat(changed it from hadle time out here) */  
+		clock_t difference = clock() - before;
+		int msec = difference * 5000 / CLOCKS_PER_SEC;
+		if(msec >= 1){
 			printf("ping\n"); 
 			char heartBeat[1000] = "ping";
 			heartBeat[4] = '\0';
@@ -51,7 +54,40 @@ int multipleListen(int tel_socket) {
 				fprintf(stderr, "unable to write to server\n");
 				exit(1);
 			}
+			before = clock();
+		}
 
+		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
+
+		if(deadCounter >= 3){
+			//close socket
+			shutdown(sock_server, SHUT_RDWR);
+			int closeError = close(sock_server);
+			if(closeError == -1){
+				fprintf(stderr, "error closing socket\n");
+				fflush(stdout);
+			}
+			printf("closed socket\n");
+			fflush(stdout);
+			connectToServer(serverHostName,oldPortNum);
+		}
+
+		if (nfound == 0) {/* handel the pinging heartbeat(changed it from hadle time out here) */  
+			/*
+			printf("ping\n"); 
+			char heartBeat[1000] = "ping";
+			heartBeat[4] = '\0';
+			int heartBeatLen = 4;
+			int writeMsg = write(sock_server, heartBeat, heartBeatLen);
+			
+			if(writeMsg < 0){
+				fprintf(stderr, "unable to write to server\n");
+				exit(1);
+			}
+			*/
+			printf("timeout\n");
+			fflush(stdout);
+			deadCounter++;
 		} 
 		else if (nfound < 0) {            
 		/* handle error here... */  
@@ -69,25 +105,36 @@ int multipleListen(int tel_socket) {
 				//exit(1);
 				connectToServer(serverHostName,oldPortNum);
 			}
-			if(getter == 0)
+			if(getter == 0){
+				printf("getter is 0 from reading telnet");
+				fflush(stdout);
 				exit(0);
+			}
+			deadCounter = 0;
 		}      
 		if(FD_ISSET(sock_server, &listen)){
 			int getter = read(sock_server, helper, 1000);
 			//printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
-			int writeMsg = write(tel_socket, helper, getter);
-			if(writeMsg < 0){
-				fprintf(stderr, "unable to write to client\n");
-				printf("|%s|\n",helper);
-				//connectToServer(serverHostName,oldPortNum);
-				exit(1);
-			}
-			if(getter == 0){
-				printf("getter is 0\n");
+			if(getter == 4 && strcmp(helper,"ping") == 0){
+				printf("ping from server\n");
 				fflush(stdout);
-				exit(0);
 			}
+			else {
+				int writeMsg = write(tel_socket, helper, getter);
+				if(writeMsg < 0){
+					fprintf(stderr, "unable to write to client\n");
+					printf("|%s|\n",helper);
+					//connectToServer(serverHostName,oldPortNum);
+					//exit(1);
+				}
+				if(getter == 0){
+					printf("getter is 0\n");
+					fflush(stdout);
+					exit(-3);
+				}
+			}
+			deadCounter = 0;
 		}
 	}
 	return 0;
