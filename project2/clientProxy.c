@@ -13,13 +13,15 @@ Authors: Kienan O'Brien, James Murphy
 #include <netinet/in.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 
 int sock_tel;
 int sock_server;
+
 int oldPortNum;
 char* serverHostName;
 
-int connectToServer(char* hostName, int portnum);
+int connectToServer(char* hostName, int portnum, int sockToConnect);
 
 //listens to multiple ports using select, forwards data from one
 //port to the next.
@@ -33,18 +35,13 @@ int multipleListen(int tel_socket) {
 	//printf("listen() socket_server : %d\n", sock_server);
 	//printf("listen() socket_tel: %d\n", tel_socket);
 	while(1) {
-		/* need to wait for a message or a timeout */        
-		FD_ZERO(&listen);                   /* zero the bit map */        
-		FD_SET(tel_socket, &listen); /* telnet socket fdset */    
-		FD_SET(sock_server, &listen); /* server socket fdset */  
-	     /* set seconds + micro-seconds of timeout */        
-		timeout.tv_sec = 1;        
-		timeout.tv_usec = 0;
 
+
+		//ping message every second
 		clock_t difference = clock() - before;
 		int msec = difference * 5000 / CLOCKS_PER_SEC;
 		if(msec >= 1){
-			printf("ping\n"); 
+			//printf("ping\n"); 
 			char heartBeat[1000] = "ping";
 			heartBeat[4] = '\0';
 			int heartBeatLen = 4;
@@ -56,6 +53,14 @@ int multipleListen(int tel_socket) {
 			}
 			before = clock();
 		}
+		
+		/* need to wait for a message or a timeout */        
+		FD_ZERO(&listen);                   /* zero the bit map */        
+		FD_SET(tel_socket, &listen); /* telnet socket fdset */    
+		FD_SET(sock_server, &listen); /* server socket fdset */  
+	     /* set seconds + micro-seconds of timeout */        
+		timeout.tv_sec = 1;        
+		timeout.tv_usec = 0;
 
 		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
 
@@ -69,22 +74,16 @@ int multipleListen(int tel_socket) {
 			}
 			printf("closed socket\n");
 			fflush(stdout);
-			connectToServer(serverHostName,oldPortNum);
+			//create new socket
+			printf("sock_server before: %d",sock_server);
+			sock_server = socket(PF_INET, SOCK_STREAM, 6);
+			//reconnect to server
+			printf("Attempting to reconnect to the server.\n");
+			connectToServer(serverHostName,oldPortNum, sock_server);
+			printf("Reconnect successful.\n");
 		}
 
-		if (nfound == 0) {/* handel the pinging heartbeat(changed it from hadle time out here) */  
-			/*
-			printf("ping\n"); 
-			char heartBeat[1000] = "ping";
-			heartBeat[4] = '\0';
-			int heartBeatLen = 4;
-			int writeMsg = write(sock_server, heartBeat, heartBeatLen);
-			
-			if(writeMsg < 0){
-				fprintf(stderr, "unable to write to server\n");
-				exit(1);
-			}
-			*/
+		if (nfound == 0) {/* HAVE NOT READ ANYTHING FOR ONE SECOND*/
 			printf("timeout\n");
 			fflush(stdout);
 			deadCounter++;
@@ -94,16 +93,18 @@ int multipleListen(int tel_socket) {
 			//printf("select didnt work\n");   
 			return 1;   
 		}
+
+
+
+		//READ FROM TELNET
 		if(FD_ISSET(tel_socket, &listen)){
-			//printf("client message\n");
 			int getter = read(tel_socket, helper, 1000);
-			//printf("Client bytes read: %d\n", getter);
 			helper[getter] = '\0';
 			int writeMsg = write(sock_server, helper, getter);
 			if(writeMsg < 0){
 				printf("unable to write to server\n");
 				//exit(1);
-				connectToServer(serverHostName,oldPortNum);
+				connectToServer(serverHostName,oldPortNum, sock_server);
 			}
 			if(getter == 0){
 				printf("getter is 0 from reading telnet");
@@ -111,15 +112,21 @@ int multipleListen(int tel_socket) {
 				exit(0);
 			}
 			deadCounter = 0;
-		}      
+		}
+
+		//READ FROM SERVER      
 		if(FD_ISSET(sock_server, &listen)){
 			int getter = read(sock_server, helper, 1000);
 			//printf("Telnet bytes read: %d\n", getter);
 			helper[getter] = '\0';
+
+
+			//PING FROM SERVER
 			if(getter == 4 && strcmp(helper,"ping") == 0){
 				printf("ping from server\n");
 				fflush(stdout);
 			}
+			//TELNET DATA FROM SERVER
 			else {
 				int writeMsg = write(tel_socket, helper, getter);
 				if(writeMsg < 0){
@@ -143,7 +150,7 @@ int multipleListen(int tel_socket) {
 /*
  * Handles connecting to server
 */
-int connectToServer(char* hostName, int portnum){
+int connectToServer(char* hostName, int portnum, int sockToConnect){
 	struct sockaddr_in sin;
 	sin.sin_family = PF_INET;
 	//copy ip address
@@ -160,10 +167,10 @@ int connectToServer(char* hostName, int portnum){
 	sin.sin_port = htons(portnum);
 
 	//connect ---------------------------------------------------------------
-	int connectError = connect(sock_server, (struct sockaddr *) &sin, sizeof(sin));
-	if(connectError < 0){
-		fprintf(stderr, "could not connect to %s\n", hostName);
-		return 1;
+	printf("connectToServer(): socket: %d host: %s port: %d\n", sockToConnect, hostName, portnum);
+	if(connect(sockToConnect, (struct sockaddr *) &sin, sizeof(sin)) < 0){
+		fprintf(stderr, "could not connect to %s with errno %d\n", hostName, errno);
+		exit(1);
 	}
 
 	printf("successfully connected to server\n");
@@ -205,7 +212,7 @@ int connectAll(int portnum, char *hostname, int port){
 	}
 	//printf("accepted connection from telnet\n");
 	//connect to server proxy after
-	if(connectToServer(hostname, port) != 0){
+	if(connectToServer(hostname, port, sock_server) != 0){
 		return 1;
 	}
 
