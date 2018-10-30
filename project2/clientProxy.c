@@ -62,8 +62,6 @@ int multipleListen(int tel_socket) {
 		timeout.tv_sec = 1;        
 		timeout.tv_usec = 0;
 
-		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
-
 		if(deadCounter >= 3){
 			//close socket
 			shutdown(sock_server, SHUT_RDWR);
@@ -73,15 +71,21 @@ int multipleListen(int tel_socket) {
 				fflush(stdout);
 			}
 			printf("closed socket\n");
+			printf("waiting 10 seconds");
 			fflush(stdout);
+			sleep(10);
 			//create new socket
 			printf("sock_server before: %d",sock_server);
 			sock_server = socket(PF_INET, SOCK_STREAM, 6);
 			//reconnect to server
 			printf("Attempting to reconnect to the server.\n");
+			
 			connectToServer(serverHostName,oldPortNum, sock_server);
+			
 			printf("Reconnect successful.\n");
 		}
+
+		nfound = select(FD_SETSIZE, &listen, (fd_set *)0, (fd_set *)0, &timeout);
 
 		if (nfound == 0) {/* HAVE NOT READ ANYTHING FOR ONE SECOND*/
 			printf("timeout\n");
@@ -126,6 +130,22 @@ int multipleListen(int tel_socket) {
 				printf("ping from server\n");
 				fflush(stdout);
 			}
+			else if(getter == 4 && strcmp(helper,"pingping") == 0){
+				printf("ping from server\n");
+				fflush(stdout);
+			}
+			else if(getter == 4 && strcmp(helper,"pingpingping") == 0){
+				printf("ping from server\n");
+				fflush(stdout);
+			}
+			else if(getter == 4 && strcmp(helper,"pingpingpingping") == 0){
+				printf("ping from server\n");
+				fflush(stdout);
+			}
+			else if(helper[0] == 'p' && helper[1] == 'i' && helper[2] == 'n' && helper[3] == 'g'){
+				printf("ping from server\n");
+				fflush(stdout);
+			}
 			//TELNET DATA FROM SERVER
 			else {
 				int writeMsg = write(tel_socket, helper, getter);
@@ -157,7 +177,7 @@ int connectToServer(char* hostName, int portnum, int sockToConnect){
 	in_addr_t address;
 	address = inet_addr(hostName);
 	if( address == -1){
-		fprintf(stderr, "error setting ip adress\n");
+		//fprintf(stderr, "error setting ip adress\n");
 		return 1;
 	}
 	memcpy(&sin.sin_addr, &address, sizeof(address));
@@ -167,10 +187,10 @@ int connectToServer(char* hostName, int portnum, int sockToConnect){
 	sin.sin_port = htons(portnum);
 
 	//connect ---------------------------------------------------------------
-	printf("connectToServer(): socket: %d host: %s port: %d\n", sockToConnect, hostName, portnum);
+	//printf("connectToServer(): socket: %d host: %s port: %d\n", sockToConnect, hostName, portnum);
 	if(connect(sockToConnect, (struct sockaddr *) &sin, sizeof(sin)) < 0){
-		fprintf(stderr, "could not connect to %s with errno %d\n", hostName, errno);
-		exit(1);
+		//fprintf(stderr, "could not connect to %s with errno %d\n", hostName, errno);
+		return 1;
 	}
 
 	printf("successfully connected to server\n");
