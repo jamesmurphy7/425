@@ -12,6 +12,8 @@
  **********************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 
@@ -67,6 +69,92 @@ struct sr_ARP_instance
  *
  *---------------------------------------------------------------------*/
 
+struct node {
+	uint8_t * packet;
+	struct node * next;
+};
+
+struct ipNode {
+	unsigned char   ar_sha[ETHER_ADDR_LEN];   /* mac   */
+	uint32_t        ar_sip; /* ip  */
+	struct node * next;
+};
+
+struct node * packetHead;
+struct node * packetTail;
+struct ipNode * ipCacheHead;
+struct ipNode * ipCacheTail;
+
+void addPacketToCache(uint8_t * packet){
+	
+	if(packetHead == NULL){
+		printf("got here 1\n");
+		fflush(stdout);
+		struct node * newNode = malloc(sizeof(struct node));
+		printf("got here 2\n");
+		fflush(stdout);
+		newNode->packet = packet;
+		newNode->next = NULL;
+		packetHead = newNode;
+		packetTail = newNode;
+	}
+	else{
+		printf("got here 3\n");
+		fflush(stdout);
+		struct node * newNode = malloc(sizeof(struct node));
+		newNode->packet = packet;
+		newNode->next = NULL;
+		packetTail->next = newNode;
+		packetTail = newNode;
+	}
+	printf("added packet\n");
+	fflush(stdout);
+		
+}
+
+void sr_handleARP(struct sr_instance* sr, 
+        uint8_t * packet/* lent */,
+        unsigned int len,
+        char* interface/* lent */,
+	uint8_t newSourceAddr[ETHER_ADDR_LEN],
+	struct sr_ethernet_hdr * ethernethdr)
+{
+	struct sr_arphdr * arpHeader = (struct sr_arphdr *) (packet + sizeof(struct sr_ethernet_hdr));
+
+	if(htons(arpHeader->ar_op) == ARP_REPLY){
+		printf("arp is a reply\n");
+		fflush(stdout);
+	} 
+
+	if(htons(arpHeader->ar_op) == ARP_REQUEST){
+		printf("arp is a request\n");
+		fflush(stdout);
+		//copy shost and dhost addresses to aprHeader
+		for(int i = 0; i < ETHER_ADDR_LEN; i++){
+			arpHeader->ar_tha[i] = (unsigned char) ethernethdr->ether_dhost[i];
+			arpHeader->ar_sha[i] = (unsigned char) newSourceAddr[i];
+
+			//uint8_t tempByte = ethernethdr->ether_dhost[i];
+			ethernethdr->ether_dhost[i] = ethernethdr->ether_shost[i];
+			ethernethdr->ether_shost[i] = newSourceAddr[i];		
+
+		}
+
+		arpHeader->ar_op = ARP_REPLY;
+		uint32_t tempSip = arpHeader->ar_sip;
+		arpHeader->ar_sip = arpHeader->ar_tip;
+		arpHeader->ar_tip = tempSip;
+
+		//struct sr_ethernet_hdr * checketh = (struct sr_ethernet_hdr *) packet;
+	
+		int sendReturnVal = sr_send_packet(sr, packet, 42, interface);
+		printf("send_packed returned: %d\n", sendReturnVal);
+		fflush(stdout);
+		addPacketToCache(packet);
+	}	
+
+}
+
 void sr_handlepacket(struct sr_instance* sr, 
         uint8_t * packet/* lent */,
         unsigned int len,
@@ -100,42 +188,36 @@ void sr_handlepacket(struct sr_instance* sr,
 		
 		
 		if(diff == 0){
-			printf("got here\n");
-			printf("name is |%s|\n", ifList->name);
+			//printf("got here\n");
+			//printf("name is |%s|\n", ifList->name);
 			fflush(stdout);
 			isFound = 1;
 			for(int i = 0; i < ETHER_ADDR_LEN; i++){
 				newSourceAddr[i] = (uint8_t) ifList->addr[i];
 			}
-			printf("got here2\n");
+			//printf("got here2\n");
 			break;
 		}
 		ifList = ifList + sizeof(struct sr_if);
 	}
 
 	//------------------------------------------------------------------------
-	
-
-	struct sr_arphdr * aprHeader = (struct sr_arphdr *) (packet + sizeof(struct sr_ethernet_hdr));
-	//copy shost and dhost addresses to aprHeader
-	for(int i = 0; i < ETHER_ADDR_LEN; i++){
-		aprHeader->ar_tha[i] = (unsigned char) ethernethdr->ether_dhost[i];
-		aprHeader->ar_sha[i] = (unsigned char) ethernethdr->ether_shost[i];
-
-		//uint8_t tempByte = ethernethdr->ether_dhost[i];
-		ethernethdr->ether_dhost[i] = ethernethdr->ether_shost[i];
-		ethernethdr->ether_shost[i] = newSourceAddr[i];		
-
-	}
-
-	struct sr_ethernet_hdr * checketh = (struct sr_ethernet_hdr *) packet;
-	printf("dhost: 0x%02x\n", checketh->ether_dhost[0]);
-	printf("shost: 0x%02x\n", checketh->ether_shost[0]);
-
-	int sendReturnVal = sr_send_packet(sr, packet, 42, interface);
-	printf("send_packed returned: %d\n", sendReturnVal);
+	printf("check\n");
 	fflush(stdout);
-
+	if(htons(ethernethdr->ether_type) == ETHERTYPE_ARP){
+		printf("srhandle arp\n");
+		fflush(stdout);
+		sr_handleARP(sr, packet, len, interface, newSourceAddr,ethernethdr); 
+	}
+	else if(htons(ethernethdr->ether_type) == ETHERTYPE_IP){
+		printf("srhandle ip\n");
+		fflush(stdout);
+	}
+	else if(htons(ethernethdr->ether_type) == IPPROTO_ICMP){
+		printf("srhandle icmp\n");
+		fflush(stdout);
+	}
+	
 }/* end sr_ForwardPacket */
 
 
