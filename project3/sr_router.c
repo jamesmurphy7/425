@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#include <stdint.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
 
 #include "sr_if.h"
 #include "sr_rt.h"
@@ -75,8 +77,8 @@ struct node {
 };
 
 struct ipNode {
-	unsigned char   ar_sha[ETHER_ADDR_LEN];   /* mac   */
-	uint32_t        ar_sip; /* ip  */
+	unsigned char  * ar_sha;   /* mac   */
+	uint32_t ar_sip; /* ip  */
 	struct node * next;
 };
 
@@ -84,6 +86,43 @@ struct node * packetHead;
 struct node * packetTail;
 struct ipNode * ipCacheHead;
 struct ipNode * ipCacheTail;
+
+unsigned char * getEthernet(uint32_t ar_sip){
+	struct ipNode * currNode = ipCacheHead;	
+	while(currNode != NULL){
+		if(currNode->ar_sip == ar_sip){
+			return currNode->ar_sha;
+		}
+		currNode = currNode->next;
+	}
+	printf("could not find ethernet given ip\n");
+	fflush(stdout);
+	return NULL;
+}
+
+void addIpToCache(struct sr_arphdr * ArpHeader){
+	if(ipCacheHead == NULL){
+		struct ipNode * newNode = malloc(sizeof(struct ipNode));
+		newNode->ar_sha = ArpHeader->ar_sha;
+		newNode->ar_sip = ArpHeader->ar_sip;
+		newNode->next = NULL;
+		ipCacheHead = newNode;
+		ipCacheTail = newNode;
+		
+		printf("%c - %c\n", newNode->ar_sha[0], ArpHeader->ar_sha[0]);
+		printf("%c - %c\n", newNode->ar_sha[3], ArpHeader->ar_sha[3]);
+		printf("%c - %c\n", newNode->ar_sha[5], ArpHeader->ar_sha[5]);
+	}
+	else{
+		struct ipNode * newNode = malloc(sizeof(struct ipNode));
+		newNode->ar_sha = ArpHeader->ar_sha;
+		newNode->ar_sip = ArpHeader->ar_sip;
+		newNode->next = NULL;
+		ipCacheTail->next = newNode;
+		ipCacheTail = newNode;
+	}
+}
+
 
 void addPacketToCache(uint8_t * packet){
 	
@@ -123,6 +162,7 @@ void sr_handleARP(struct sr_instance* sr,
 
 	if(htons(arpHeader->ar_op) == ARP_REPLY){
 		printf("arp is a reply\n");
+		addIpToCache(arpHeader);
 		fflush(stdout);
 	} 
 
@@ -134,23 +174,22 @@ void sr_handleARP(struct sr_instance* sr,
 			arpHeader->ar_tha[i] = (unsigned char) ethernethdr->ether_dhost[i];
 			arpHeader->ar_sha[i] = (unsigned char) newSourceAddr[i];
 
-			//uint8_t tempByte = ethernethdr->ether_dhost[i];
+			uint8_t tempByte = ethernethdr->ether_dhost[i];
 			ethernethdr->ether_dhost[i] = ethernethdr->ether_shost[i];
 			ethernethdr->ether_shost[i] = newSourceAddr[i];		
 
 		}
 
-		arpHeader->ar_op = ARP_REPLY;
+		arpHeader->ar_op = htons(ARP_REPLY);
 		uint32_t tempSip = arpHeader->ar_sip;
 		arpHeader->ar_sip = arpHeader->ar_tip;
 		arpHeader->ar_tip = tempSip;
-
-		//struct sr_ethernet_hdr * checketh = (struct sr_ethernet_hdr *) packet;
 	
 		int sendReturnVal = sr_send_packet(sr, packet, 42, interface);
-		printf("send_packed returned: %d\n", sendReturnVal);
+		printf("send_packet returned: %d\n", sendReturnVal);
 		fflush(stdout);
 		addPacketToCache(packet);
+		addIpToCache(arpHeader);
 	}	
 
 }
