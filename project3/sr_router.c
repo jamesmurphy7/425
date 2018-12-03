@@ -109,9 +109,9 @@ void addIpToCache(struct sr_arphdr * ArpHeader){
 		ipCacheHead = newNode;
 		ipCacheTail = newNode;
 		
-		printf("%c - %c\n", newNode->ar_sha[0], ArpHeader->ar_sha[0]);
-		printf("%c - %c\n", newNode->ar_sha[3], ArpHeader->ar_sha[3]);
-		printf("%c - %c\n", newNode->ar_sha[5], ArpHeader->ar_sha[5]);
+		//printf("%c - %c\n", newNode->ar_sha[0], ArpHeader->ar_sha[0]);
+		//printf("%c - %c\n", newNode->ar_sha[3], ArpHeader->ar_sha[3]);
+		//printf("%c - %c\n", newNode->ar_sha[5], ArpHeader->ar_sha[5]);
 	}
 	else{
 		struct ipNode * newNode = malloc(sizeof(struct ipNode));
@@ -127,10 +127,10 @@ void addIpToCache(struct sr_arphdr * ArpHeader){
 void addPacketToCache(uint8_t * packet){
 	
 	if(packetHead == NULL){
-		printf("got here 1\n");
+		//printf("got here 1\n");
 		fflush(stdout);
 		struct node * newNode = malloc(sizeof(struct node));
-		printf("got here 2\n");
+		//printf("got here 2\n");
 		fflush(stdout);
 		newNode->packet = packet;
 		newNode->next = NULL;
@@ -170,17 +170,13 @@ void sr_handleARP(struct sr_instance* sr,
 		printf("arp is a request\n");
 		fflush(stdout);
 		//copy shost and dhost addresses to aprHeader
-		for(int i = 0; i < ETHER_ADDR_LEN; i++){
-			arpHeader->ar_tha[i] = (unsigned char) ethernethdr->ether_dhost[i];
-			arpHeader->ar_sha[i] = (unsigned char) newSourceAddr[i];
-
-			uint8_t tempByte = ethernethdr->ether_dhost[i];
-			ethernethdr->ether_dhost[i] = ethernethdr->ether_shost[i];
-			ethernethdr->ether_shost[i] = newSourceAddr[i];		
-
-		}
+		memcpy(ethernethdr->ether_dhost, ethernethdr->ether_dhost, ETHER_ADDR_LEN);
+		memcpy(ethernethdr->ether_shost, newSourceAddr, ETHER_ADDR_LEN);
+		memcpy(arpHeader->ar_tha, arpHeader->ar_sha, ETHER_ADDR_LEN);
+		memcpy(arpHeader->ar_sha, newSourceAddr, ETHER_ADDR_LEN);
 
 		arpHeader->ar_op = htons(ARP_REPLY);
+
 		uint32_t tempSip = arpHeader->ar_sip;
 		arpHeader->ar_sip = arpHeader->ar_tip;
 		arpHeader->ar_tip = tempSip;
@@ -231,9 +227,10 @@ void sr_handlepacket(struct sr_instance* sr,
 			//printf("name is |%s|\n", ifList->name);
 			fflush(stdout);
 			isFound = 1;
-			for(int i = 0; i < ETHER_ADDR_LEN; i++){
+			/*for(int i = 0; i < ETHER_ADDR_LEN; i++){
 				newSourceAddr[i] = (uint8_t) ifList->addr[i];
-			}
+			}*/
+			memcpy(newSourceAddr, ifList->addr, ETHER_ADDR_LEN);
 			//printf("got here2\n");
 			break;
 		}
