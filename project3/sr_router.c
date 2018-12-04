@@ -103,8 +103,8 @@ unsigned char * getEthernet(uint32_t ar_sip){
 void addIpToCache(struct sr_arphdr * ArpHeader){
 	if(ipCacheHead == NULL){
 		struct ipNode * newNode = malloc(sizeof(struct ipNode));
-		newNode->ar_sha = ArpHeader->ar_sha;
-		newNode->ar_sip = ArpHeader->ar_sip;
+		memcpy(newNode->ar_sha, ArpHeader->ar_sha, ETHER_ADDR_LEN);//works
+		newNode->ar_sip = ArpHeader->ar_tip;
 		newNode->next = NULL;
 		ipCacheHead = newNode;
 		ipCacheTail = newNode;
@@ -170,13 +170,11 @@ void sr_handleARP(struct sr_instance* sr,
 		printf("arp is a request\n");
 		fflush(stdout);
 		//copy shost and dhost addresses to aprHeader
-		memcpy(ethernethdr->ether_dhost, ethernethdr->ether_dhost, ETHER_ADDR_LEN);
+		memcpy(ethernethdr->ether_dhost, ethernethdr->ether_shost, ETHER_ADDR_LEN);
 		memcpy(ethernethdr->ether_shost, newSourceAddr, ETHER_ADDR_LEN);
 		memcpy(arpHeader->ar_tha, arpHeader->ar_sha, ETHER_ADDR_LEN);
 		memcpy(arpHeader->ar_sha, newSourceAddr, ETHER_ADDR_LEN);
-
 		arpHeader->ar_op = htons(ARP_REPLY);
-
 		uint32_t tempSip = arpHeader->ar_sip;
 		arpHeader->ar_sip = arpHeader->ar_tip;
 		arpHeader->ar_tip = tempSip;
@@ -189,7 +187,182 @@ void sr_handleARP(struct sr_instance* sr,
 	}	
 
 }
+uint16_t isCheckSumValid(void* vdata,size_t length) {
+    // Cast the data pointer to one that can be indexed.
+    char* data=(char*)vdata;
 
+    // Initialise the accumulator.
+    uint32_t acc=0xffff;
+
+    // Handle complete 16-bit blocks.
+    for (size_t i=0;i+1<length;i+=2) {
+        uint16_t word;
+        memcpy(&word,data+i,2);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Handle any partial block at the end of the data.
+    if (length&1) {
+        uint16_t word=0;
+        memcpy(&word,data+length-1,1);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Return the checksum in network byte order.
+    return htons(~acc);
+}/* end ip_checksum */
+
+uint16_t setCksum(uint8_t* hdr, int len)
+{
+    long sum = 0;
+    
+    while(len > 1)
+    {
+        sum += *((unsigned short*)hdr);
+        printf("sum: %08x\n", sum);
+        hdr = hdr + 2;
+        if(sum & 0x80000000)
+        {
+            sum = (sum & 0xFFFF) + (sum >> 16);
+        }
+        len -= 2;
+    }
+    
+    if(len)
+    {
+        sum += (unsigned short) *(unsigned char *)hdr;
+    }
+    
+    while(sum>>16)
+    {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+    
+    return ~sum;
+}/* end ip_checksum */
+int send_ARP_Request(struct sr_instance* sr, 
+					uint8_t * packet, 
+					unsigned int len, 
+					char* interface,
+					uint8_t newSourceAddr[ETHER_ADDR_LEN],
+					struct sr_ethernet_hdr * ethernethdr,
+					uint32_t lookingfor) {
+
+	uint8_t * newPacket = malloc(sizeof(sr_ethernet_hdr)+sizeof(sr_arphdr));
+
+	printf("\nSEND ARP REQUEST\n");
+	fflush(stdout);
+
+	arpHeader->ar_op = htons(ARP_REQUEST);
+	arpHeader->ar_sip = arpHeader->ar_tip;
+	arpHeader->ar_tip = lookingfor;
+	printf("LOOKING FOR: %d\n", lookingfor);
+	printf("SENDING FROM: %d\n", arpHeader->ar_sip);
+
+	int sendReturnVal = sr_send_packet(sr, packet, 42, interface);
+	printf("send_packet returned: %d\n", sendReturnVal);
+	fflush(stdout);
+	return sendReturnVal;
+
+}
+void sr_handleIP(struct sr_instance* sr, 
+					uint8_t * packet, 
+					unsigned int len, 
+					char* interface,
+					uint8_t newSourceAddr[ETHER_ADDR_LEN],
+					struct sr_ethernet_hdr * ethernethdr) {
+
+	assert(sr);
+
+	struct ip* ip_packet = (struct ip*)(packet + sizeof(struct sr_ethernet_hdr));//process data as ip packet
+
+	if(ip_packet->ip_src.s_addr == ip_packet->ip_dst.s_addr){
+		printf("sr_handleIP():::Same address. Discarding packet...\n");
+		return;
+	}
+
+	/* WORKING
+	int len_ip = (ip_packet->ip_hl)*2;
+	printf("sr_handleIP()::: len : %d\n", len_ip);
+	printf("sr_handleIP()::: oldCheck : %d\n", ip_packet->ip_sum);
+	uint16_t ttt = ip_packet->ip_sum;
+	ip_packet->ip_sum = 0x0000;
+	printf("Checksum test: %d\n", setCksum(ip_packet, sizeof(struct ip)));
+	//decrement TTL 
+	*/
+
+	if(ip_packet->ip_ttl == 0){
+		printf("sr_handleIP():::Packet has reached end of life. Discarding packet...\n");
+		return;
+	}
+	//Find next hop
+	struct sr_rt * n = sr->routing_table;//next hop pointer into routing table
+	struct sr_rt * def = n;
+	int start = 1;
+	while(n != NULL){
+		//dont check the default gateway.
+		if(n->dest.s_addr == 0){
+			def =  n;
+			n = n->next;
+			continue;
+		}
+		//found the correct address from the routing table
+		//printf("destination of packet: %d\n", ip_packet->ip_dst.s_addr);
+		//BITWISE AND with the mask to get next hop
+		struct in_addr ip_where = ip_packet->ip_dst;
+		ip_where.s_addr = ip_where.s_addr & n->mask.s_addr;
+		//printf("WHERE? : %d\n", ip_where.s_addr);
+		if(ip_where.s_addr == n->dest.s_addr){
+			printf("Found next hop\n");
+			break;
+		}
+		n = n->next;
+	}
+	//use the default gateway.
+	if(n == NULL){
+		n = def;
+	}
+	//n is next hop
+	struct ipNode * list = ipCacheHead;
+	int found = 0;
+	while(list != NULL){
+		printf("Next Hop IP: %d\n", n->dest.s_addr);
+		printf("Next Hop interface: %s\n", n->interface);
+		printf("LIST IP: %d\n", list->ar_sip);
+		printf("LIST MAC: ");
+		for(int i = 0; i < ETHER_ADDR_LEN; i++){
+			printf("%02x", list->ar_sha[i]);
+		}
+		printf("\n");
+		if(list->ar_sip == n->dest.s_addr){
+			//found the hardware address of the next hop
+			printf("FOUND HARDWARE\n");
+			found = 1;
+		}
+		list = list->next;
+	}
+	if(found == 0){
+		int res = send_ARP_Request(sr, packet, len, interface, newSourceAddr, ethernethdr, n->dest.s_addr);
+	}
+	/*
+	c.Use the routing table to find the IP address of the next hop. DONE
+
+	d.Check ARP cache for the Ethernet address of the next hop. 
+	If needed, it should send an ARP request to get the Ethernet address.
+
+	e.While the router is waiting for the ARP reply, 
+	it should buffer incoming packets that go to the same next hop.
+
+	f.After the ARP reply is received, save the information in the ARP cache, 
+	and send out all the packets that are waiting for the ARP reply.
+	*/
+}
 void sr_handlepacket(struct sr_instance* sr, 
         uint8_t * packet/* lent */,
         unsigned int len,
@@ -200,7 +373,7 @@ void sr_handlepacket(struct sr_instance* sr,
     assert(packet);
     assert(interface);
 
-    printf("*** -> Received packet of length %d \n",len);
+    printf("\n\n*** -> Received packet of length %d \n",len);
 	struct sr_ethernet_hdr * ethernethdr = (struct sr_ethernet_hdr *) packet;
 	struct sr_if* ifList = sr->if_list;
 
@@ -227,10 +400,8 @@ void sr_handlepacket(struct sr_instance* sr,
 			//printf("name is |%s|\n", ifList->name);
 			fflush(stdout);
 			isFound = 1;
-			/*for(int i = 0; i < ETHER_ADDR_LEN; i++){
-				newSourceAddr[i] = (uint8_t) ifList->addr[i];
-			}*/
 			memcpy(newSourceAddr, ifList->addr, ETHER_ADDR_LEN);
+			printf("MY IP: %d\n", ifList->ip);
 			//printf("got here2\n");
 			break;
 		}
@@ -248,6 +419,7 @@ void sr_handlepacket(struct sr_instance* sr,
 	else if(htons(ethernethdr->ether_type) == ETHERTYPE_IP){
 		printf("srhandle ip\n");
 		fflush(stdout);
+		sr_handleIP(sr, packet, len, interface, newSourceAddr, ethernethdr);
 	}
 	else if(htons(ethernethdr->ether_type) == IPPROTO_ICMP){
 		printf("srhandle icmp\n");
