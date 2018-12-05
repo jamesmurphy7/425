@@ -151,6 +151,36 @@ void addPacketToCache(uint8_t * packet){
 		
 }
 
+void delete(uint8_t * packet){
+	struct node * currNode = packetHead;
+	struct node * delNode = NULL;
+	struct node * prevNode = NULL;
+	while(currNode != NULL){
+		if(memcmp(packet,currNode->packet) == 0){
+			delNode = currNode;
+			break;
+		}
+		currNode = currNode->next;
+	}
+	if(currNode == NULL){
+		return;
+	}
+	if(delNode == packetHead){
+		packetHead = delNode->next;
+		return;
+	}
+	currNode = packetHead;
+	while(currNode != NULL){
+		if(memcmp(packet,currNode->next->packet) == 0){
+			prevNode = currNode;
+			break;
+		}
+		currNode = currNode->next;
+	}
+	prevNode->next = delNode->next;
+	return;
+}
+
 void sr_handleARP(struct sr_instance* sr, 
         uint8_t * packet/* lent */,
         unsigned int len,
