@@ -162,13 +162,20 @@ void delete(uint8_t * packet){
 		}
 		currNode = currNode->next;
 	}
+	//couldn't find node so do nothing
 	if(currNode == NULL){
 		return;
 	}
+	//if its the head delete the head
 	if(delNode == packetHead){
 		packetHead = delNode->next;
+		//if its the tail delete the tail
+		if(delNode == packetTail){
+			packetTail = NULL;
+		}
 		return;
 	}
+	//else get prev node
 	currNode = packetHead;
 	while(currNode != NULL){
 		if(memcmp(packet,currNode->next->packet) == 0){
@@ -177,7 +184,12 @@ void delete(uint8_t * packet){
 		}
 		currNode = currNode->next;
 	}
+	//set the prevnodes next to delnode next
 	prevNode->next = delNode->next;
+	//if the del node is tail delete tail
+	if(delNode == packetTail){
+		packetTail = prevNode;
+	}
 	return;
 }
 
